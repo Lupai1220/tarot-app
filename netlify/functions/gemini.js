@@ -10,6 +10,8 @@ exports.handler = async (event) => {
         });
         
         const data = await response.json();
+        
+        // นี่คือจุดสำคัญที่ทำให้โชว์ข้อความครับ
         const aiText = data.candidates[0].content.parts[0].text;
         
         return { 
