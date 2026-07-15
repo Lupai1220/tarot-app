@@ -34,25 +34,32 @@
         </div>
     </div>
 
-    <script>
-        // ใส่ API KEY ของคุณตะวันที่ได้มาล่าสุดตรงนี้ครับ
-        const MY_API_KEY = "AQ.Ab8RN6IHrDgT8IskCEofbGdAS7WmI3vctW4bRCu2qprbnvpgDg"; 
-
-       async function getReading(cardName) {
-    document.getElementById('result-modal').classList.remove('hidden');
-    document.getElementById('reading-text').innerText = "กำลังสื่อสารกับดวงดาว...";
-    
-    try {
-        const response = await fetch('/.netlify/functions/gemini', {
-            method: 'POST',
-            body: JSON.stringify({ cardName: cardName })
-        });
-        const data = await response.json();
-        document.getElementById('reading-text').innerText = data.text;
-    } catch (e) {
-        document.getElementById('reading-text').innerText = "การเชื่อมต่อล้มเหลว ลองใหม่อีกครั้งนะครับ";
+   <script>
+    async function getReading(cardName) {
+        document.getElementById('result-modal').classList.remove('hidden');
+        document.getElementById('reading-text').innerText = "กำลังเชื่อมต่อ...";
+        
+        try {
+            // ใช้คีย์ตรงๆ และดึงข้อมูลแบบปลอดภัย
+            const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AQ.Ab8RN6IHrDgT8IskCEOfbgDAS7Wml3...", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: "ทำนายไพ่ " + cardName + " ให้หน่อย" }] }] })
+            });
+            
+            const data = await response.json();
+            
+            // เพิ่มการเช็กข้อมูลแบบละเอียดเพื่อกัน undefined
+            if (data && data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const text = data.candidates[0].content.parts[0].text;
+                document.getElementById('reading-text').innerText = text;
+            } else {
+                document.getElementById('reading-text').innerText = "AI ตอบกลับมาไม่สมบูรณ์ (ลองเช็คคีย์อีกครั้ง)";
+            }
+        } catch (e) {
+            document.getElementById('reading-text').innerText = "เชื่อมต่อล้มเหลว: " + e.message;
+        }
     }
-}
-    </script>
+</script>
 </body>
 </html>
