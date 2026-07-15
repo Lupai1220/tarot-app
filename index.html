@@ -37,43 +37,38 @@
     <script>
         // ใช้ API Key ของคุณตะวัน
         const API_KEY = "AQ.Ab8RN6JFs_BeockplTZIEp9q5OlogRwGeauyQbd8_f7x7HqsKQ";
-
-        async function getReading(cardName) {
-            const modal = document.getElementById('result-modal');
-            const textElement = document.getElementById('reading-text');
-            
-            modal.classList.remove('hidden');
-            textElement.innerText = "กำลังรับคำทำนายจากไพ่ " + cardName + "...";
-            
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        contents: [{ parts: [{ text: "ทำนายไพ่ทาโรต์ใบนี้ให้หน่อยครับ: " + cardName }] }] 
-                    })
-                });
-                
-                const data = await response.json();
-                
-                // ตรวจสอบว่า Google ส่ง Error กลับมาหรือไม่ (เช่น คีย์ผิด, โดนบล็อก)
-                if (data.error) {
-                     textElement.innerText = "⚠️ Google ปฏิเสธการเชื่อมต่อ:\n" + data.error.message;
-                     return;
-                }
-                
-                // ตรวจสอบว่ามีคำทำนายส่งมาปกติหรือไม่
-                if (data.candidates && data.candidates.length > 0) {
-                    textElement.innerText = data.candidates[0].content.parts[0].text;
-                } else {
-                    textElement.innerText = "รับข้อมูลมาแล้วแต่ไม่มีคำทำนายครับ (ข้อมูลที่ได้: " + JSON.stringify(data) + ")";
-                }
-            } catch (e) {
-                textElement.innerText = "❌ เกิดข้อผิดพลาดในระบบเว็บ:\n" + e.message;
-            }
+async function getReading(cardName) {
+    const modal = document.getElementById('result-modal');
+    const textElement = document.getElementById('reading-text');
+    
+    modal.classList.remove('hidden');
+    textElement.innerText = "กำลังรับคำทำนาย...";
+    
+    // เปลี่ยนมาใช้วิธีส่งคีย์ใน URL แบบตรงไปตรงมาครับ
+  
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                contents: [{ parts: [{ text: "ทำนายไพ่ทาโรต์ใบนี้ให้หน่อย: " + cardName }] }] 
+            })
+        });
+        
+        const data = await response.json();
+        
+        // ถ้าเกิด Error Google จะส่งข้อมูลกลับมาในรูปแบบนี้
+        if (data.error) {
+            textElement.innerText = "Error: " + data.error.message;
+        } else if (data.candidates && data.candidates[0]) {
+            textElement.innerText = data.candidates[0].content.parts[0].text;
         }
+    } catch (e) {
+        textElement.innerText = "Error: " + e.message;
+    }
+}
     </script>
 </body>
 </html>
