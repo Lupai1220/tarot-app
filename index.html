@@ -22,7 +22,6 @@
 
     <div class="fixed bottom-0 w-full p-4">
         <div class="flex justify-center gap-2">
-            <!-- ส่งคีย์ผ่าน code โดยตรงเพื่อตัดปัญหา Netlify -->
             <button onclick="getReading('The Fool')" class="w-16 h-24 bg-purple-900 border-2 border-yellow-500 rounded-lg">🃏</button>
             <button onclick="getReading('The Chariot')" class="w-16 h-24 bg-purple-900 border-2 border-yellow-500 rounded-lg">🐎</button>
         </div>
@@ -40,18 +39,18 @@
             document.getElementById('result-modal').classList.remove('hidden');
             document.getElementById('reading-text').innerText = "กำลังเชื่อมต่อกับ AI...";
             
+            // ใช้ฟังก์ชันที่ย้ายมาจัดการที่ Backend (Netlify Function) แทน
             try {
-                // เรียกใช้ผ่าน Proxy ฟรีที่เสถียรที่สุดตอนนี้
-                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=AIzaSyBc9-pEXgF_38cAEBV17zB2L-Tl4T_ev5Y')}`, {
+                const response = await fetch('/.netlify/functions/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: "ทำนายไพ่ " + cardName + " ให้หน่อย" }] }] })
+                    body: JSON.stringify({ cardName: cardName })
                 });
+                
                 const data = await response.json();
-                const content = JSON.parse(data.contents);
-                document.getElementById('reading-text').innerText = content.candidates[0].content.parts[0].text;
+                document.getElementById('reading-text').innerText = data.text;
             } catch (e) {
-                document.getElementById('reading-text').innerText = "ขออภัย ระบบขัดข้อง (AI อาจถูกจำกัดสิทธิ์ในเบราว์เซอร์นี้)";
+                document.getElementById('reading-text').innerText = "เชื่อมต่อ Server ล้มเหลว กรุณาตรวจสอบว่ามีไฟล์ /netlify/functions/gemini.js แล้วหรือยัง";
             }
         }
     </script>
