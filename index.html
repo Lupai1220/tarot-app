@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematic AI Tarot Reader - Production Ready</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            -webkit-user-select: none;
+            user-select: none; 
+            background: radial-gradient(circle at 50% 50%, #2a154d 0%, #0a0514 100%); 
+            background-size: 200% 200%;
+            animation: breathe 10s ease-in-out infinite;
+            min-height: 100vh; 
+            overflow: hidden; 
+            font-family: 'Prompt', sans-serif;
+            color: #f3f4f6;
+        }
+
+        @keyframes breathe {
+            0% { background-position: 50% 50%; }
+            50% { background-position: 50% 0%; }
+            100% { background-position: 50% 50%; }
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .floating { animation: float 4s ease-in-out infinite; }
+
+        .glass-panel {
+            background: rgba(30, 15, 50, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .glow-border { 
+            border: 2px dashed rgba(234, 179, 8, 0.4); 
+            background: rgba(0, 0, 0, 0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glow-border.drag-over {
+            background: rgba(138, 43, 226, 0.2);
+            border-color: #fbbf24;
+            box-shadow: 0 0 40px rgba(251, 191, 36, 0.4), inset 0 0 20px rgba(138, 43, 226, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .card { 
+            cursor: grab; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), z-index 0s, filter 0.3s;
+            position: absolute;
+            bottom: 30px; 
+            transform-origin: bottom center;
+            will-change: transform;
+        }
+        .card:hover {
+            transform: translateY(calc(var(--y-offset) - 50px)) scale(1.5) rotate(var(--rot)) !important;
+            z-index: 999 !important;
+            filter: brightness(1.2);
+        }
+        .card:active { cursor: grabbing; }
+        
+        .tarot-back { 
+            background: linear-gradient(135deg, #2d1154, #140529); 
+            border: 2px solid #fbbf24; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(251, 191, 36, 0.2);
+            background-image: 
+                radial-gradient(circle at center, rgba(255,215,0,0.15) 0%, transparent 60%),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 8px);
+        }
+        .tarot-front {
+            background: linear-gradient(180deg, #160a2b 0%, #0a0314 100%);
+            border: 3px solid #fbbf24;
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.3), inset 0 0 20px rgba(251, 191, 36, 0.1);
+        }
+        
+        #deck-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .category-btn {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .category-btn.active {
+            background: rgba(107, 33, 168, 0.8);
+            border-color: #fbbf24;
+            box-shadow: 0 0 20px rgba(107, 33, 168, 0.6);
+            color: #fbbf24;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center h-screen relative pt-12 sm:pt-16">
+
+    <div class="glass-panel absolute top-6 flex space-x-2 sm:space-x-4 z-10 px-4 py-2 rounded-full">
+        <button class="category-btn active px-4 sm:px-6 py-2 rounded-full border border-transparent text-sm sm:text-base font-medium tracking-wide" data-category="ภาพรวม">ภาพรวม</button>
+        <button class="category-btn px-4 sm:px-6 py-2 rounded-full border border-transparent text-gray-400 hover:text-white text-sm sm:text-base font-medium tracking-wide" data-category="ความรัก">ความรัก</button>
+        <button class="category-btn px-4 sm:px-6 py-2 rounded-full border border-transparent text-gray-400 hover:text-white text-sm sm:text-base font-medium tracking-wide" data-category="การงาน">การงาน</button>
+        <button class="category-btn px-4 sm:px-6 py-2 rounded-full border border-transparent text-gray-400 hover:text-white text-sm sm:text-base font-medium tracking-wide" data-category="การเงิน">การเงิน</button>
+    </div>
+
+    <div id="drop-zone" class="floating w-44 h-64 sm:w-52 sm:h-80 rounded-2xl flex items-center justify-center glow-border flex-col text-center p-4 z-0 mt-10">
+        <div class="w-16 h-16 mb-4 rounded-full border border-yellow-500/50 flex items-center justify-center animate-pulse">
+            <span class="text-yellow-400 text-2xl">🔮</span>
+        </div>
+        <span class="text-yellow-400/80 text-sm tracking-wider font-light leading-relaxed">ลากไพ่มาวางที่นี่<br>หรือ <b class="text-yellow-400">คลิกที่ไพ่</b> เพื่อทำนาย</span>
+    </div>
+
+    <div class="absolute bottom-6 w-full px-2 flex flex-col items-center overflow-hidden h-44 sm:h-56">
+        <p class="text-purple-300/80 text-xs sm:text-sm mb-6 tracking-widest uppercase font-light">✨ Select your card ✨</p>
+        <div id="deck-container" class="h-28 sm:h-40 w-full relative"></div>
+    </div>
+
+    <div id="result-modal" class="hidden absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center z-[999] p-4 text-center">
+        <h2 id="loading-text" class="text-2xl sm:text-3xl text-yellow-400 mb-8 animate-pulse tracking-widest font-light">✨ AI กำลังทำนายดวงของคุณ...</h2>
+        
+        <div id="reading-content" class="hidden flex-col items-center max-w-lg animate-[fadeIn_1s_ease-in-out]">
+            <div class="absolute w-64 h-64 bg-purple-600/30 rounded-full blur-3xl -z-10"></div>
+            
+            <div class="w-56 h-80 tarot-front rounded-xl mb-8 flex flex-col items-center justify-center p-4 relative transform transition hover:scale-105 duration-500">
+                <span id="result-icon" class="text-yellow-500 text-7xl mb-6 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]">🌍</span>
+                <span id="result-name-en" class="text-yellow-400 text-xl font-bold tracking-widest text-center uppercase">THE WORLD</span>
+            </div>
+            
+            <h3 id="result-name-th" class="text-3xl sm:text-4xl text-white mb-3 font-semibold drop-shadow-md">The World</h3>
+            
+            <span id="result-category" class="text-yellow-400 text-sm font-medium mb-4 border border-yellow-500/50 bg-yellow-500/10 rounded-full px-4 py-1.5 backdrop-blur-sm">
+                คำทำนาย: ภาพรวม
+            </span>
+            
+            <p id="result-desc" class="text-gray-200 mb-10 leading-relaxed text-sm sm:text-base px-4 font-light max-w-md h-28 overflow-y-auto">...</p>
+            
+            <button onclick="resetApp()" class="px-10 py-3.5 rounded-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold tracking-wide transition shadow-[0_0_20px_rgba(251,191,36,0.4)]">
+                รับคำทำนายใบใหม่
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentCategory = "ภาพรวม";
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                categoryBtns.forEach(b => {
+                    b.classList.remove('active', 'text-yellow-400');
+                    b.classList.add('text-gray-400');
+                });
+                btn.classList.add('active');
+                btn.classList.remove('text-gray-400');
+                currentCategory = btn.getAttribute('data-category');
+            });
+        });
+
+        const tarotCards = [
+            { icon: "🃏", en: "The Fool", th: "การเริ่มต้นใหม่" },
+            { icon: "🪄", en: "The Magician", th: "พลังแห่งการเนรมิต" },
+            { icon: "🔮", en: "The High Priestess", th: "สัญชาตญาณ" },
+            { icon: "👑", en: "The Empress", th: "ความอุดมสมบูรณ์" },
+            { icon: "🛡️", en: "The Emperor", th: "ความมั่นคง" },
+            { icon: "📜", en: "The Hierophant", th: "ความเชื่อและคำแนะนำ" },
+            { icon: "💞", en: "The Lovers", th: "ทางเลือกแห่งหัวใจ" },
+            { icon: "🐎", en: "The Chariot", th: "ชัยชนะ" },
+            { icon: "🦁", en: "Strength", th: "ความแข็งแกร่ง" },
+            { icon: "🏮", en: "The Hermit", th: "ค้นหาคำตอบ" },
+            { icon: "🎡", en: "Wheel of Fortune", th: "โชคชะตา" },
+            { icon: "⚖️", en: "Justice", th: "ความยุติธรรม" },
+            { icon: "🙃", en: "The Hanged Man", th: "การมองมุมกลับ" },
+            { icon: "💀", en: "Death", th: "สิ้นสุดเพื่อเริ่มใหม่" },
+            { icon: "🌊", en: "Temperance", th: "การปรับสมดุล" },
+            { icon: "⛓️", en: "The Devil", th: "พันธนาการ" },
+            { icon: "⚡", en: "The Tower", th: "การเปลี่ยนแปลงกะทันหัน" },
+            { icon: "⭐", en: "The Star", th: "ความหวัง" },
+            { icon: "🌙", en: "The Moon", th: "ความวิตกกังวล" },
+            { icon: "☀️", en: "The Sun", th: "พลังบวกและความสำเร็จ" },
+            { icon: "📯", en: "Judgment", th: "การตื่นรู้" },
+            { icon: "🌍", en: "The World", th: "ความสมบูรณ์แบบ" }
+        ];
+
+        const deckContainer = document.getElementById('deck-container');
+        const dropZone = document.getElementById('drop-zone');
+        const resultModal = document.getElementById('result-modal');
+        const loadingText = document.getElementById('loading-text');
+        const readingContent = document.getElementById('reading-content');
+        const resultDesc = document.getElementById('result-desc');
+
+        function createDeck() {
+            deckContainer.innerHTML = ''; 
+            const totalCards = tarotCards.length;
+            
+            for (let i = 0; i < totalCards; i++) {
+                const card = document.createElement('div');
+                card.className = `card w-10 h-16 sm:w-14 sm:h-20 md:w-16 md:h-24 rounded-md sm:rounded-lg tarot-back flex items-center justify-center`;
+                
+                const normalizedX = (i / (totalCards - 1)) * 2 - 1;
+                const maxAngle = 35; 
+                const angle = normalizedX * maxAngle;
+                
+                const maxDrop = 40; 
+                const yOffset = Math.pow(normalizedX, 2) * maxDrop;
+                
+                const percentX = (i / (totalCards - 1)) * 90 + 5;
+                
+                card.style.setProperty('--rot', `${angle}deg`);
+                card.style.setProperty('--y-offset', `${yOffset}px`);
+                card.style.transform = `translateY(${yOffset}px) rotate(${angle}deg)`;
+                card.style.left = `calc(${percentX}% - 20px)`; 
+                card.style.zIndex = i;
+                card.draggable = true;
+
+                card.innerHTML = `<div class="w-5 h-5 sm:w-8 sm:h-8 border border-yellow-500/50 rounded-full flex items-center justify-center opacity-60"><span class="text-yellow-400 text-[8px] sm:text-xs">✡</span></div>`;
+
+                card.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', 'tarot_card');
+                    card.style.opacity = '0.5';
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.style.opacity = '1';
+                });
+
+                card.addEventListener('click', () => {
+                    processReading();
+                });
+
+                deckContainer.appendChild(card);
+            }
+        }
+
+        createDeck();
+
+        // 🔗 ฟังก์ชันเชื่อมต่อ Netlify Function ของเรา
+        async function fetchGeminiReading(cardName, category) {
+            try {
+                // เรียก API จาก Backend (โฟลเดอร์ netlify/functions)
+                const response = await fetch('/.netlify/functions/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cardName, category })
+                });
+
+                if (!response.ok) throw new Error("Backend Error");
+
+                const data = await response.json();
+                return data.reading; 
+                
+            } catch (error) {
+                console.error("Error:", error);
+                return "✨ พลังงานจักรวาลขัดข้องชั่วคราว แต่ไพ่ใบนี้สื่อถึงสิ่งดีๆ ที่กำลังจะเกิดขึ้นครับ";
+            }
+        }
+
+        async function processReading() {
+            dropZone.classList.remove('drag-over');
+            
+            const randomCard = tarotCards[Math.floor(Math.random() * tarotCards.length)];
+            
+            document.getElementById('result-icon').innerText = randomCard.icon;
+            document.getElementById('result-name-en').innerText = randomCard.en;
+            document.getElementById('result-name-th').innerText = randomCard.en + " (" + randomCard.th + ")";
+            document.getElementById('result-category').innerText = `หมวดหมู่: ${currentCategory}`;
+            resultDesc.innerText = "🔮 กำลังสื่อสารกับจักรวาล...";
+
+            resultModal.classList.remove('hidden');
+            resultModal.classList.add('flex');
+            loadingText.classList.remove('hidden');
+            readingContent.classList.add('hidden');
+            readingContent.classList.remove('flex');
+
+            // เรียกใช้งาน AI ผ่าน Backend
+            const aiReadingText = await fetchGeminiReading(randomCard.en, currentCategory);
+            
+            resultDesc.innerText = aiReadingText;
+
+            loadingText.classList.add('hidden');
+            readingContent.classList.remove('hidden');
+            readingContent.classList.add('flex');
+        }
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            processReading();
+        });
+
+        function resetApp() {
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('flex');
+            createDeck();
+        }
+    </script>
+</body>
+</html>
