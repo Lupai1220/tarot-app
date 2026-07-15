@@ -3,72 +3,367 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Tarot Reader</title>
+    <title>Cinematic AI Tarot Reader - Premium Edition (Fixed Drag)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        body { background: radial-gradient(circle, #2a154d, #0a0514); min-height: 100vh; color: white; display: flex; flex-direction: column; align-items: center; }
-        .glass { background: rgba(30, 15, 50, 0.5); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+        body { 
+            /* ป้องกันการคลุมดำตัวหนังสือตอนลากไพ่ */
+            -webkit-user-select: none;
+            user-select: none; 
+
+            background: radial-gradient(circle at 50% 50%, #2a154d 0%, #0a0514 100%); 
+            background-size: 200% 200%;
+            animation: breathe 10s ease-in-out infinite;
+            min-height: 100vh; 
+            overflow: hidden; 
+            font-family: 'Prompt', sans-serif;
+            color: #f3f4f6;
+        }
+
+        /* แอนิเมชันพื้นหลังหายใจ */
+        @keyframes breathe {
+            0% { background-position: 50% 50%; }
+            50% { background-position: 50% 0%; }
+            100% { background-position: 50% 50%; }
+        }
+
+        /* แอนิเมชันลอยตัว */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .floating { animation: float 4s ease-in-out infinite; }
+
+        /* เอฟเฟกต์กระจก (Glassmorphism) */
+        .glass-panel {
+            background: rgba(30, 15, 50, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Drop Zone */
+        .glow-border { 
+            border: 2px dashed rgba(234, 179, 8, 0.4); 
+            background: rgba(0, 0, 0, 0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glow-border.drag-over {
+            background: rgba(138, 43, 226, 0.2);
+            border-color: #fbbf24;
+            box-shadow: 0 0 40px rgba(251, 191, 36, 0.4), inset 0 0 20px rgba(138, 43, 226, 0.3);
+            transform: scale(1.05);
+        }
+        
+        /* ไพ่ทาโรต์ */
+        .card { 
+            cursor: grab; /* เปลี่ยนกลับเป็น grab เพื่อให้รู้ว่าลากได้ */
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), z-index 0s, filter 0.3s;
+            position: absolute;
+            bottom: 30px; 
+            transform-origin: bottom center;
+            will-change: transform;
+        }
+        .card:hover {
+            transform: translateY(calc(var(--y-offset) - 50px)) scale(1.5) rotate(var(--rot)) !important;
+            z-index: 999 !important;
+            filter: brightness(1.2);
+        }
+        .card:active {
+            cursor: grabbing;
+        }
+        
+        /* ลวดลายไพ่ */
+        .tarot-back { 
+            background: linear-gradient(135deg, #2d1154, #140529); 
+            border: 2px solid #fbbf24; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), inset 0 0 10px rgba(251, 191, 36, 0.2);
+            background-image: 
+                radial-gradient(circle at center, rgba(255,215,0,0.15) 0%, transparent 60%),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px, transparent 1px, transparent 8px);
+        }
+        .tarot-front {
+            background: linear-gradient(180deg, #160a2b 0%, #0a0314 100%);
+            border: 3px solid #fbbf24;
+            box-shadow: 0 0 30px rgba(251, 191, 36, 0.3), inset 0 0 20px rgba(251, 191, 36, 0.1);
+        }
+        
+        #deck-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* ปุ่มหมวดหมู่ */
+        .category-btn {
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .category-btn.active {
+            background: rgba(107, 33, 168, 0.8);
+            border-color: #fbbf24;
+            box-shadow: 0 0 20px rgba(107, 33, 168, 0.6);
+            color: #fbbf24;
+        }
     </style>
 </head>
-<body class="p-4">
-    <div class="flex gap-2 mb-8 mt-10 glass p-2 rounded-full">
-        <button class="px-4 py-2 bg-purple-700 rounded-full">ภาพรวม</button>
+<body class="flex flex-col items-center h-screen relative pt-12 sm:pt-16">
+
+    <!-- เมนูด้านบน (Glassmorphism) -->
+    <div class="glass-panel absolute top-6 flex space-x-2 sm:space-x-4 z-10 px-4 py-2 rounded-full">
+        <button class="category-btn active px-4 sm:px-6 py-2 rounded-full border border-transparent text-sm sm:text-base font-medium tracking-wide" data-category="ภาพรวม">ภาพรวม</button>
+        <button class="category-btn px-4 sm:px-6 py-2 rounded-full border border-transparent text-gray-400 hover:text-white text-sm sm:text-base font-medium tracking-wide" data-category="ความรัก">ความรัก</button>
+        <button class="category-btn px-4 sm:px-6 py-2 rounded-full border border-transparent text-gray-400 hover:text-white text-sm sm:text-base font-medium tracking-wide" data-category="การงาน">การงาน</button>
+        <button class="category-btn px-4 sm:px-6 py-2 rounded-full border border-transparent text-gray-400 hover:text-white text-sm sm:text-base font-medium tracking-wide" data-category="การเงิน">การเงิน</button>
     </div>
 
-    <div id="drop-zone" class="w-64 h-96 border-2 border-dashed border-yellow-500 rounded-2xl flex flex-col items-center justify-center p-4">
-        <span class="text-4xl mb-2">🔮</span>
-        <p class="text-center text-yellow-400">คลิกที่ไพ่ด้านล่าง<br>เพื่อรับคำทำนาย</p>
+    <!-- Drop Zone (เวทมนตร์ลอยตัว) -->
+    <div id="drop-zone" class="floating w-44 h-64 sm:w-52 sm:h-80 rounded-2xl flex items-center justify-center glow-border flex-col text-center p-4 z-0 mt-10">
+        <div class="w-16 h-16 mb-4 rounded-full border border-yellow-500/50 flex items-center justify-center animate-pulse">
+            <span class="text-yellow-400 text-2xl">🔮</span>
+        </div>
+        <span class="text-yellow-400/80 text-sm tracking-wider font-light leading-relaxed">ลากไพ่มาวางที่นี่<br>หรือ <b class="text-yellow-400">คลิกที่ไพ่</b> เพื่อทำนาย</span>
     </div>
 
-    <div class="fixed bottom-0 w-full p-4">
-        <div class="flex justify-center gap-2">
-            <button onclick="getReading('The Fool')" class="w-16 h-24 bg-purple-900 border-2 border-yellow-500 rounded-lg shadow-lg hover:bg-purple-800 transition">🃏</button>
-            <button onclick="getReading('The Chariot')" class="w-16 h-24 bg-purple-900 border-2 border-yellow-500 rounded-lg shadow-lg hover:bg-purple-800 transition">🐎</button>
+    <!-- กองไพ่ 78 ใบ -->
+    <div class="absolute bottom-6 w-full px-2 flex flex-col items-center overflow-hidden h-44 sm:h-56">
+        <p class="text-purple-300/80 text-xs sm:text-sm mb-6 tracking-widest uppercase font-light">✨ Select your card ✨</p>
+        <div id="deck-container" class="h-28 sm:h-40 w-full relative">
+            <!-- ไพ่ 78 ใบจะถูกสร้างที่นี่ -->
         </div>
     </div>
 
-    <div id="result-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-50">
-        <div class="bg-purple-900 p-6 rounded-xl border border-yellow-500 max-h-[80vh] overflow-y-auto w-full max-w-md">
-            <p id="reading-text" class="text-white text-lg whitespace-pre-wrap leading-relaxed">กำลังสื่อสารกับดวงดาว...</p>
-            <button onclick="document.getElementById('result-modal').classList.add('hidden')" class="mt-6 w-full py-3 bg-yellow-500 text-black font-bold rounded-lg shadow-md hover:bg-yellow-400 transition">ปิด</button>
+    <!-- หน้าต่างแสดงผลลัพธ์ -->
+    <div id="result-modal" class="hidden absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center z-[999] p-4 text-center">
+        <h2 id="loading-text" class="text-2xl sm:text-3xl text-yellow-400 mb-8 animate-pulse tracking-widest font-light">✨ กำลังเชื่อมต่อกับจักรวาล...</h2>
+        
+        <div id="reading-content" class="hidden flex-col items-center max-w-lg animate-[fadeIn_1s_ease-in-out]">
+            <!-- แสงออร่าด้านหลังไพ่ -->
+            <div class="absolute w-64 h-64 bg-purple-600/30 rounded-full blur-3xl -z-10"></div>
+            
+            <div class="w-56 h-80 tarot-front rounded-xl mb-8 flex flex-col items-center justify-center p-4 relative transform transition hover:scale-105 duration-500">
+                <span id="result-icon" class="text-yellow-500 text-7xl mb-6 drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]">🌍</span>
+                <span id="result-name-en" class="text-yellow-400 text-xl font-bold tracking-widest text-center uppercase">THE WORLD</span>
+            </div>
+            
+            <h3 id="result-name-th" class="text-3xl sm:text-4xl text-white mb-3 font-semibold drop-shadow-md">The World</h3>
+            
+            <span id="result-category" class="text-yellow-400 text-sm font-medium mb-4 border border-yellow-500/50 bg-yellow-500/10 rounded-full px-4 py-1.5 backdrop-blur-sm">
+                คำทำนาย: ภาพรวม
+            </span>
+            
+            <p id="result-desc" class="text-gray-300 mb-10 leading-relaxed text-sm sm:text-base px-4 font-light">...</p>
+            
+            <button onclick="resetApp()" class="px-10 py-3.5 rounded-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 font-bold tracking-wide transition shadow-[0_0_20px_rgba(251,191,36,0.4)]">
+                รับคำทำนายใบใหม่
+            </button>
         </div>
     </div>
 
     <script>
-        // ใช้ API Key ของคุณตะวัน
-        const API_KEY = "AQ.Ab8RN6JFs_BeockplTZIEp9q5OlogRwGeauyQbd8_f7x7HqsKQ";
-async function getReading(cardName) {
-    const modal = document.getElementById('result-modal');
-    const textElement = document.getElementById('reading-text');
-    
-    modal.classList.remove('hidden');
-    textElement.innerText = "กำลังรับคำทำนาย...";
-    
-    // เปลี่ยนมาใช้วิธีส่งคีย์ใน URL แบบตรงไปตรงมาครับ
-  
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
-    
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                contents: [{ parts: [{ text: "ทำนายไพ่ทาโรต์ใบนี้ให้หน่อย: " + cardName }] }] 
-            })
+        let currentCategory = "ภาพรวม";
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                categoryBtns.forEach(b => {
+                    b.classList.remove('active', 'text-yellow-400');
+                    b.classList.add('text-gray-400');
+                });
+                btn.classList.add('active');
+                btn.classList.remove('text-gray-400');
+                currentCategory = btn.getAttribute('data-category');
+            });
         });
-        
-        const data = await response.json();
-        
-        // ถ้าเกิด Error Google จะส่งข้อมูลกลับมาในรูปแบบนี้
-        if (data.error) {
-            textElement.innerText = "Error: " + data.error.message;
-        } else if (data.candidates && data.candidates[0]) {
-            textElement.innerText = data.candidates[0].content.parts[0].text;
+
+        const tarotCards = [
+            { icon: "🃏", en: "The Fool", th: "การเริ่มต้นใหม่", desc: "กล้าที่จะก้าวเดินไปข้างหน้าอย่างอิสระ ปล่อยวางความกังวลแล้วสนุกกับการผจญภัยครั้งใหม่" },
+            { icon: "🪄", en: "The Magician", th: "พลังแห่งการเนรมิต", desc: "คุณมีศักยภาพพร้อมทุกอย่างในมือ ตอนนี้คือเวลาลงมือทำ สิ่งที่คิดฝันสามารถทำให้เป็นจริงได้" },
+            { icon: "🔮", en: "The High Priestess", th: "สัญชาตญาณ", desc: "เชื่อมั่นในลางสังหรณ์ของคุณ ช่วงนี้อาจมีบางอย่างซ่อนเร้น ให้ใช้ความสงบเพื่อค้นหาคำตอบ" },
+            { icon: "👑", en: "The Empress", th: "ความอุดมสมบูรณ์", desc: "ช่วงเวลาแห่งความอุดมสมบูรณ์ สิ่งที่คุณตั้งใจไว้กำลังจะผลิดอกออกผลอย่างงดงาม" },
+            { icon: "🛡️", en: "The Emperor", th: "ความมั่นคง", desc: "คุณต้องการระเบียบวินัยและความเป็นผู้นำ ไพ่ใบนี้สะท้อนถึงความมั่นคงที่เกิดจากการควบคุมที่ดี" },
+            { icon: "📜", en: "The Hierophant", th: "ความเชื่อและคำแนะนำ", desc: "การทำตามแบบแผนหรือขอคำแนะนำจากผู้ที่มีประสบการณ์ จะช่วยนำทางคุณออกจากความสับสนได้" },
+            { icon: "💞", en: "The Lovers", th: "ทางเลือกแห่งหัวใจ", desc: "ความสัมพันธ์กำลังเบ่งบาน หรือคุณต้องตัดสินใจเลือกทางเดินสำคัญโดยใช้หัวใจเป็นเครื่องนำทาง" },
+            { icon: "🐎", en: "The Chariot", th: "ชัยชนะ", desc: "หากคุณมีความมุ่งมั่นและควบคุมสติได้ดี ชัยชนะและความสำเร็จรอคุณอยู่ที่ปลายทางอย่างแน่นอน" },
+            { icon: "🦁", en: "Strength", th: "ความแข็งแกร่ง", desc: "ความแข็งแกร่งที่แท้จริงมาจากความอ่อนโยน การเอาชนะใจตัวเองจะช่วยให้คุณผ่านทุกอย่างไปได้" },
+            { icon: "🏮", en: "The Hermit", th: "ค้นหาคำตอบ", desc: "ถึงเวลาปลีกวิเวกทบทวนตัวเอง แสงสว่างที่คุณตามหาไม่ได้อยู่ข้างนอก แต่อยู่ภายในจิตใจของคุณเอง" },
+            { icon: "🎡", en: "Wheel of Fortune", th: "โชคชะตา", desc: "กงล้อแห่งโชคชะตากำลังหมุน โอกาสดีๆ และความเปลี่ยนแปลงในทางบวกกำลังมุ่งหน้ามาหาคุณ" },
+            { icon: "⚖️", en: "Justice", th: "ความยุติธรรม", desc: "ทุกอย่างจะเป็นไปตามเหตุและผล การตัดสินใจในช่วงนี้ต้องใช้ความตรรกะและเหตุผลเป็นหลัก" },
+            { icon: "🙃", en: "The Hanged Man", th: "การมองมุมกลับ", desc: "คุณอาจต้องยอมหยุดนิ่งหรือเสียสละบางอย่าง เพื่อให้ได้มาซึ่งมุมมองใหม่ๆ ในการแก้ปัญหา" },
+            { icon: "💀", en: "Death", th: "สิ้นสุดเพื่อเริ่มใหม่", desc: "การจบสิ้นเรื่องราวเก่าๆ เพื่อเปิดพื้นที่ให้สิ่งใหม่ๆ ที่ดีกว่าเข้ามาแทนที่ อย่ากลัวการเปลี่ยนแปลง" },
+            { icon: "🌊", en: "Temperance", th: "การปรับสมดุล", desc: "ช่วงเวลาแห่งการปรับตัว คุณต้องรู้จักผสานความต่างให้เข้ากันอย่างลงตัว เพื่อพบความสงบสุข" },
+            { icon: "⛓️", en: "The Devil", th: "พันธนาการ", desc: "ระวังการยึดติดที่ทำให้คุณรู้สึกไร้อิสระ คุณมีพลังที่จะปลดโซ่ตรวนนี้ได้เสมอหากกล้าปล่อยวาง" },
+            { icon: "⚡", en: "The Tower", th: "การเปลี่ยนแปลงกะทันหัน", desc: "การทลายรากฐานที่ไม่มั่นคง เพื่อให้คุณสร้างชีวิตใหม่ที่แข็งแรงกว่าเดิม" },
+            { icon: "⭐", en: "The Star", th: "ความหวัง", desc: "หลังจากพายุผ่านพ้นไป นี่คือช่วงเวลาแห่งการเยียวยาจิตใจและได้รับแรงบันดาลใจใหม่ๆ" },
+            { icon: "🌙", en: "The Moon", th: "ความวิตกกังวล", desc: "อย่าเพิ่งตัดสินใจอะไรในตอนที่ทุกอย่างยังไม่ชัดเจน ให้เวลาตัวเองได้พิจารณาสิ่งต่างๆ ให้ถี่ถ้วน" },
+            { icon: "☀️", en: "The Sun", th: "พลังบวกและความสำเร็จ", desc: "ความสำเร็จและความสุขกำลังรอคุณอยู่ อุปสรรคต่างๆ กำลังจะคลี่คลายกลายเป็นเรื่องดีๆ" },
+            { icon: "📯", en: "Judgment", th: "การตื่นรู้", desc: "ถึงเวลาปลดปล่อยตัวเองจากอดีต คุณกำลังจะก้าวเข้าสู่การตื่นรู้และได้รับโอกาสเริ่มต้นใหม่" },
+            { icon: "🌍", en: "The World", th: "ความสมบูรณ์แบบ", desc: "วัฏจักรของชีวิตกำลังจะหมุนพาความสมบูรณ์แบบมาให้ ทุกอย่างบรรลุเป้าหมายสูงสุดตามที่คุณตั้งใจ" },
+            
+            { icon: "🪵", en: "Ace of Wands", th: "โอกาสใหม่", desc: "แรงบันดาลใจใหม่ๆ และโอกาสในการเริ่มต้นโปรเจกต์หรือหน้าที่การงานใหม่กำลังเข้ามา" },
+            { icon: "🪵", en: "Two of Wands", th: "การวางแผน", desc: "คุณกำลังมองการณ์ไกลและวางแผนสำหรับอนาคต ถึงเวลาตัดสินใจเลือกเส้นทาง" },
+            { icon: "🪵", en: "Three of Wands", th: "การขยายตัว", desc: "สิ่งที่คุณลงมือทำเริ่มเห็นผลลัพธ์ เป็นช่วงเวลาที่ดีในการขยายขอบเขตการทำงาน" },
+            { icon: "🪵", en: "Four of Wands", th: "ความสำเร็จเบื้องต้น", desc: "การเฉลิมฉลองความสำเร็จและรากฐานที่มั่นคงในชีวิตหรือการงาน" },
+            { icon: "🪵", en: "Five of Wands", th: "การแข่งขัน", desc: "มีความขัดแย้งหรือการแข่งขันเล็กๆ น้อยๆ เกิดขึ้นรอบตัว ต้องใช้สติในการจัดการ" },
+            { icon: "🪵", en: "Six of Wands", th: "ชัยชนะและการยอมรับ", desc: "คุณจะได้รับชัยชนะและได้รับการยกย่องจากความพยายามของคุณ" },
+            { icon: "🪵", en: "Seven of Wands", th: "การยืนหยัด", desc: "คุณต้องเผชิญกับความท้าทาย แต่จงยืนหยัดในจุดยืนของคุณ คุณจะผ่านมันไปได้" },
+            { icon: "🪵", en: "Eight of Wands", th: "ความรวดเร็ว", desc: "เหตุการณ์ต่างๆ จะดำเนินไปอย่างรวดเร็ว ข่าวสารหรือการเปลี่ยนแปลงกำลังมาถึง" },
+            { icon: "🪵", en: "Nine of Wands", th: "ความอดทน", desc: "คุณอาจรู้สึกเหนื่อยล้า แต่ใกล้จะถึงเส้นชัยแล้ว ขอให้อดทนอีกนิด" },
+            { icon: "🪵", en: "Ten of Wands", th: "ภาระหนัก", desc: "คุณกำลังแบกรับภาระมากเกินไป ถึงเวลาเรียนรู้ที่จะปล่อยวางหรือขอความช่วยเหลือ" },
+            { icon: "🪵", en: "Page of Wands", th: "ไอเดียใหม่", desc: "ข่าวดีเรื่องงานหรือแรงบันดาลใจใหม่ๆ ที่ทำให้คุณตื่นเต้นอยากทดลองทำ" },
+            { icon: "🪵", en: "Knight of Wands", th: "ความกระตือรือร้น", desc: "พลังงานเต็มเปี่ยมพร้อมลุย แต่อาจต้องระวังความใจร้อนหรือความวู่วาม" },
+            { icon: "🪵", en: "Queen of Wands", th: "ความมั่นใจ", desc: "คุณมีเสน่ห์และความมั่นใจสูง สามารถดึงดูดสิ่งดีๆ และจัดการงานได้อย่างยอดเยี่ยม" },
+            { icon: "🪵", en: "King of Wands", th: "ความเป็นผู้นำ", desc: "ความสำเร็จที่เกิดจากวิสัยทัศน์และการเป็นผู้นำที่แข็งแกร่งของคุณ" },
+
+            { icon: "🏆", en: "Ace of Cups", th: "อารมณ์ความรู้สึกใหม่", desc: "ความรัก ความเมตตา และอารมณ์ด้านบวกที่กำลังเริ่มต้นขึ้น ลางดีแห่งความสัมพันธ์" },
+            { icon: "🏆", en: "Two of Cups", th: "ความเชื่อมโยง", desc: "ความสัมพันธ์ที่เข้ากันได้อย่างลงตัว การพบเจอคนที่รู้ใจหรือการจับมือร่วมกัน" },
+            { icon: "🏆", en: "Three of Cups", th: "การเฉลิมฉลอง", desc: "ช่วงเวลาแห่งความสุข การสังสรรค์ และมิตรภาพที่แน่นแฟ้น" },
+            { icon: "🏆", en: "Four of Cups", th: "ความเบื่อหน่าย", desc: "คุณอาจกำลังรู้สึกเบื่อหน่ายหรือมองข้ามโอกาสดีๆ ที่อยู่ตรงหน้า" },
+            { icon: "🏆", en: "Five of Cups", th: "ความสูญเสีย", desc: "ความเศร้าหรือความผิดหวังในอดีต จงอย่าลืมมองดูสิ่งที่ยังเหลืออยู่ข้างๆ คุณ" },
+            { icon: "🏆", en: "Six of Cups", th: "ความทรงจำ", desc: "การหวนคิดถึงอดีต หรือคนรักเก่า/เพื่อนเก่าอาจกลับมาติดต่ออีกครั้ง" },
+            { icon: "🏆", en: "Seven of Cups", th: "ทางเลือกลวงตา", desc: "มีทางเลือกมากมาย แต่ต้องระวังภาพลวงตา จงเลือกด้วยสติอย่าใช้เพียงอารมณ์" },
+            { icon: "🏆", en: "Eight of Cups", th: "การเดินจากไป", desc: "การตัดสินใจเดินออกจากสิ่งที่ไม่ตอบโจทย์ เพื่อค้นหาความหมายที่แท้จริง" },
+            { icon: "🏆", en: "Nine of Cups", th: "ความสมปรารถนา", desc: "ไพ่แห่งความสุข ความปรารถนาของคุณกำลังจะเป็นจริง" },
+            { icon: "🏆", en: "Ten of Cups", th: "ความสุขสมบูรณ์", desc: "ความสุขในครอบครัวและความสัมพันธ์ที่อบอุ่นและเติมเต็ม" },
+            { icon: "🏆", en: "Page of Cups", th: "ความอ่อนโยน", desc: "ข้อความหรือข่าวดีเกี่ยวกับความรู้สึก หรือการเริ่มต้นทำสิ่งที่รักด้วยหัวใจ" },
+            { icon: "🏆", en: "Knight of Cups", th: "ความโรแมนติก", desc: "การทำตามเสียงหัวใจเรียกร้อง หรือใครบางคนกำลังนำเรื่องราวดีๆ มามอบให้" },
+            { icon: "🏆", en: "Queen of Cups", th: "ความเห็นอกเห็นใจ", desc: "การใช้สัญชาตญาณและความอ่อนโยนในการดูแลผู้อื่นและตัวเอง" },
+            { icon: "🏆", en: "King of Cups", th: "ความมั่นคงทางอารมณ์", desc: "การควบคุมอารมณ์ได้อย่างดีเยี่ยม มีความเมตตาแต่ก็เด็ดขาดเมื่อจำเป็น" },
+
+            { icon: "🗡️", en: "Ace of Swords", th: "ความชัดเจน", desc: "ความจริงและความชัดเจนกำลังปรากฏ ไอเดียใหม่ๆ ที่ทะลุทะลวงอุปสรรค" },
+            { icon: "🗡️", en: "Two of Swords", th: "การตัดสินใจที่ยากลำบาก", desc: "คุณกำลังติดอยู่ในสภาวะกลืนไม่เข้าคายไม่ออก ต้องเผชิญหน้ากับความจริง" },
+            { icon: "🗡️", en: "Three of Swords", th: "ความเสียใจ", desc: "ความเจ็บปวดทางใจหรือความผิดหวัง แต่เป็นกระบวนการที่คุณต้องผ่านเพื่อเติบโต" },
+            { icon: "🗡️", en: "Four of Swords", th: "การพักผ่อน", desc: "ถึงเวลาต้องพักฟื้นร่างกายและจิตใจ หยุดพักชั่วคราวเพื่อเติมพลัง" },
+            { icon: "🗡️", en: "Five of Swords", th: "ชัยชนะที่ว่างเปล่า", desc: "ระวังการเอาชนะด้วยความขัดแย้งที่อาจนำมาซึ่งการสูญเสียความสัมพันธ์" },
+            { icon: "🗡️", en: "Six of Swords", th: "การก้าวผ่าน", desc: "สถานการณ์กำลังค่อยๆ ดีขึ้น คุณกำลังก้าวพ้นจากปัญหาไปสู่ความสงบ" },
+            { icon: "🗡️", en: "Seven of Swords", th: "ความลับ", desc: "อาจมีการปิดบัง ซ่อนเร้น หรือคุณต้องใช้ชั้นเชิงและเล่ห์เหลี่ยมในการแก้ปัญหา" },
+            { icon: "🗡️", en: "Eight of Swords", th: "ความรู้สึกติดกับ", desc: "คุณรู้สึกเหมือนถูกมัดไว้ แต่แท้จริงแล้วคุณสามารถหาทางออกได้หากเปลี่ยนมุมมอง" },
+            { icon: "🗡️", en: "Nine of Swords", th: "ความกังวล", desc: "ความเครียดและความกังวลจนนอนไม่หลับ ปัญหาในหัวมักใหญ่กว่าความเป็นจริงเสมอ" },
+            { icon: "🗡️", en: "Ten of Swords", th: "จุดสิ้นสุด", desc: "ปัญหามาถึงจุดต่ำสุดแล้ว หลังจากนี้จะไม่มีอะไรแย่ไปกว่านี้ ทุกอย่างกำลังจะจบลงเพื่อเริ่มใหม่" },
+            { icon: "🗡️", en: "Page of Swords", th: "ความอยากรู้อยากเห็น", desc: "การตื่นตัว การสื่อสารที่ฉับไว แต่อาจต้องระวังคำพูดที่ตรงเกินไป" },
+            { icon: "🗡️", en: "Knight of Swords", th: "ความมุ่งมั่น", desc: "การพุ่งชนเป้าหมายอย่างรวดเร็วและเด็ดขาด แต่อย่าลืมมองคนรอบข้างด้วย" },
+            { icon: "🗡️", en: "Queen of Swords", th: "ความเฉียบขาด", desc: "การมองโลกตามความเป็นจริง ใช้เหตุผลมากกว่าอารมณ์ และเป็นคนตรงไปตรงมา" },
+            { icon: "🗡️", en: "King of Swords", th: "ความเป็นธรรม", desc: "การใช้สติปัญญา ความยุติธรรม และอำนาจในการจัดการปัญหาอย่างเด็ดขาด" },
+
+            { icon: "🪙", en: "Ace of Pentacles", th: "โอกาสทางการเงิน", desc: "การเริ่มต้นใหม่ที่ดีในด้านการเงิน การงาน หรือการลงทุนที่ให้ผลตอบแทนคุ้มค่า" },
+            { icon: "🪙", en: "Two of Pentacles", th: "การหมุนเงิน", desc: "การบริหารจัดการเวลาและการเงินหลายๆ อย่างพร้อมกัน ต้องรักษาสมดุลให้ดี" },
+            { icon: "🪙", en: "Three of Pentacles", th: "การทำงานเป็นทีม", desc: "การร่วมมือกับผู้อื่นเพื่อสร้างสรรค์ผลงานที่ยอดเยี่ยมและได้รับการยอมรับ" },
+            { icon: "🪙", en: "Four of Pentacles", th: "ความหวงแหน", desc: "การเก็บออมอย่างเคร่งครัด หรืออาจหมายถึงความตระหนี่และการไม่กล้าเปลี่ยนแปลง" },
+            { icon: "🪙", en: "Five of Pentacles", th: "ความขัดสน", desc: "ช่วงเวลาที่ยากลำบากทางการเงินหรือความรู้สึกโดดเดี่ยว อย่ากลัวที่จะขอความช่วยเหลือ" },
+            { icon: "🪙", en: "Six of Pentacles", th: "การให้และรับ", desc: "ความใจกว้าง การแบ่งปัน หรือคุณอาจจะได้รับความช่วยเหลือจากผู้ใหญ่ใจดี" },
+            { icon: "🪙", en: "Seven of Pentacles", th: "การรอคอยผลผลิต", desc: "สิ่งที่คุณลงทุนลงแรงไปกำลังเติบโต จงอดทนรอคอยผลลัพธ์ที่จะตามมา" },
+            { icon: "🪙", en: "Eight of Pentacles", th: "ความอุตสาหะ", desc: "การมุ่งมั่นตั้งใจทำงาน พัฒนาทักษะ และใส่ใจในรายละเอียดเพื่อความสำเร็จ" },
+            { icon: "🪙", en: "Nine of Pentacles", th: "ความมั่งคั่ง", desc: "ความสำเร็จทางการเงิน ความหรูหรา และความสามารถในการพึ่งพาตัวเองได้อย่างภาคภูมิใจ" },
+            { icon: "🪙", en: "Ten of Pentacles", th: "ความมั่งคั่งในครอบครัว", desc: "ความมั่นคงทางทรัพย์สิน มรดก และครอบครัวที่มีความสุขสมบูรณ์" },
+            { icon: "🪙", en: "Page of Pentacles", th: "การเรียนรู้", desc: "ข่าวดีเรื่องเงิน การตั้งใจเรียนรู้ทักษะใหม่ๆ หรือการลงทุนที่ค่อยเป็นค่อยไป" },
+            { icon: "🪙", en: "Knight of Pentacles", th: "ความสม่ำเสมอ", desc: "ความรับผิดชอบ การทำงานหนักอย่างค่อยเป็นค่อยไปแต่มั่นคง" },
+            { icon: "🪙", en: "Queen of Pentacles", th: "ความอุดมสมบูรณ์", desc: "ความใจดี การดูแลใส่ใจ และความสามารถในการจัดการทรัพยากรได้อย่างดีเยี่ยม" },
+            { icon: "🪙", en: "King of Pentacles", th: "ความมั่งคั่งและอำนาจ", desc: "ความสำเร็จสูงสุดทางการเงิน การเป็นผู้นำที่มั่นคงและพึ่งพาได้" }
+        ];
+
+        const deckContainer = document.getElementById('deck-container');
+        const dropZone = document.getElementById('drop-zone');
+        const resultModal = document.getElementById('result-modal');
+        const loadingText = document.getElementById('loading-text');
+        const readingContent = document.getElementById('reading-content');
+
+        function createDeck() {
+            deckContainer.innerHTML = ''; 
+            const totalCards = tarotCards.length;
+            
+            for (let i = 0; i < totalCards; i++) {
+                const card = document.createElement('div');
+                card.className = `card w-10 h-16 sm:w-14 sm:h-20 md:w-16 md:h-24 rounded-md sm:rounded-lg tarot-back flex items-center justify-center`;
+                
+                const normalizedX = (i / (totalCards - 1)) * 2 - 1;
+                const maxAngle = 35; 
+                const angle = normalizedX * maxAngle;
+                
+                const maxDrop = 40; 
+                const yOffset = Math.pow(normalizedX, 2) * maxDrop;
+                
+                const percentX = (i / (totalCards - 1)) * 90 + 5;
+                
+                card.style.setProperty('--rot', `${angle}deg`);
+                card.style.setProperty('--y-offset', `${yOffset}px`);
+                card.style.transform = `translateY(${yOffset}px) rotate(${angle}deg)`;
+                card.style.left = `calc(${percentX}% - 20px)`; 
+                card.style.zIndex = i;
+                
+                // ให้ไพ่ลากได้ตามปกติ
+                card.draggable = true;
+
+                card.innerHTML = `<div class="w-5 h-5 sm:w-8 sm:h-8 border border-yellow-500/50 rounded-full flex items-center justify-center opacity-60"><span class="text-yellow-400 text-[8px] sm:text-xs">✡</span></div>`;
+
+                // อีเวนต์ลาก
+                card.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', 'tarot_card');
+                    card.style.opacity = '0.5';
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.style.opacity = '1';
+                });
+
+                // อีเวนต์คลิก (รองรับมือถือหรือคนที่ขี้เกียจลาก)
+                card.addEventListener('click', () => {
+                    processReading();
+                });
+
+                deckContainer.appendChild(card);
+            }
         }
-    } catch (e) {
-        textElement.innerText = "Error: " + e.message;
-    }
-}
+
+        createDeck();
+
+        function processReading() {
+            dropZone.classList.remove('drag-over');
+            
+            const randomCard = tarotCards[Math.floor(Math.random() * tarotCards.length)];
+            
+            document.getElementById('result-icon').innerText = randomCard.icon;
+            document.getElementById('result-name-en').innerText = randomCard.en;
+            document.getElementById('result-name-th').innerText = randomCard.en + " (" + randomCard.th + ")";
+            document.getElementById('result-category').innerText = `หมวดหมู่: ${currentCategory}`;
+            document.getElementById('result-desc').innerText = randomCard.desc;
+
+            resultModal.classList.remove('hidden');
+            resultModal.classList.add('flex');
+            loadingText.classList.remove('hidden');
+            readingContent.classList.add('hidden');
+            readingContent.classList.remove('flex');
+
+            setTimeout(() => {
+                loadingText.classList.add('hidden');
+                readingContent.classList.remove('hidden');
+                readingContent.classList.add('flex');
+            }, 1800);
+        }
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            processReading();
+        });
+
+        function resetApp() {
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('flex');
+            createDeck();
+        }
     </script>
 </body>
 </html>
